@@ -1,0 +1,36 @@
+{
+  "original_3layer": {
+    "parameters": 216168,
+    "seq_len": 12,
+    "pred_horizon": 1,
+    "latency_ms": {
+      "mean": 4.402599334716797,
+      "std": 1.650757704316958,
+      "min": 1.989126205444336,
+      "max": 9.034872055053711,
+      "median": 4.004836082458496,
+      "p95": 7.893073558807373,
+      "p99": 8.019216060638433
+    }
+  },
+  "unified_stgcn": {
+    "parameters": 67916,
+    "seq_len": 60,
+    "pred_horizon": 12,
+    "latency_ms": {
+      "mean": 5.202360153198242,
+      "std": 1.6038271759148446,
+      "min": 2.9838085174560547,
+      "max": 10.998725891113281,
+      "median": 4.999756813049316,
+      "p95": 8.055365085601803,
+      "p99": 10.01635074615479
+    }
+  },
+  "comparison": {
+    "speedup": 0.8462696170718249,
+    "parameter_reduction_percent": 68.58184375115651,
+    "throughput_improvement_percent": -15.373038292817503,
+    "latency_reduction_percent": -18.16565073671168
+  }
+}

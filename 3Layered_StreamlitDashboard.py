@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from PIL import Image
 import time
+import json
+import os
 
 from chembur_network import ChemburTrafficNetwork
 from spatiotemporal_gcn import SpatioTemporalGCN, TrafficPredictor
@@ -95,6 +97,20 @@ def generate_test_data():
     return traffic_data, timestamps, network.get_adjacency_matrix()
 
 
+@st.cache_data
+def load_latency_measurements():
+    """Load actual latency measurements from JSON file"""
+    json_path = 'architecture_comparison.json'
+    
+    if os.path.exists(json_path):
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+            return data.get('original_3layer', {}).get('latency_ms', {})
+    
+    # If JSON doesn't exist, return None to indicate measurements need to be run
+    return None
+
+
 def plot_network_interactive(network, traffic_levels=None):
     """Plot the network with optional traffic levels"""
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -176,7 +192,7 @@ def main():
     st.sidebar.markdown("### About")
     st.sidebar.info(
         "This dashboard visualizes traffic predictions using a "
-        "Spatiotemporal GCN model for the Chembur area in Mumbai."
+        "Three-Layered GCN model for the Chembur area in Mumbai."
     )
     
     # Main content
@@ -467,15 +483,31 @@ def show_performance_analysis(network, predictor, model_loaded):
     # Latency metrics
     st.subheader("🏃 Inference Latency")
     
+    # Load actual measurements
+    latency_data = load_latency_measurements()
+    
+    if latency_data is None:
+        st.warning("⚠️ Latency measurements not found. Run compare_latency.py to generate measurements.")
+        return
+    
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Mean Latency", "1.76 ms")
+        st.metric("Mean Latency", f"{latency_data.get('mean', 0):.3f} ms")
     with col2:
-        st.metric("Median Latency", "1.50 ms")
+        st.metric("Median Latency", f"{latency_data.get('median', 0):.3f} ms")
     with col3:
-        st.metric("Min Latency", "0.00 ms")
+        st.metric("Min Latency", f"{latency_data.get('min', 0):.3f} ms")
     with col4:
-        st.metric("Max Latency", "10.00 ms")
+        st.metric("Max Latency", f"{latency_data.get('max', 0):.3f} ms")
+    
+    # Additional percentile metrics
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Std Dev", f"{latency_data.get('std', 0):.3f} ms")
+    with col2:
+        st.metric("95th Percentile", f"{latency_data.get('p95', 0):.3f} ms")
+    with col3:
+        st.metric("99th Percentile", f"{latency_data.get('p99', 0):.3f} ms")
     
     st.markdown("---")
     
@@ -485,16 +517,27 @@ def show_performance_analysis(network, predictor, model_loaded):
     with col1:
         st.subheader("⏱️ Real-time Feasibility")
         
-        st.write("**Prediction Window:** 5 seconds")
-        st.write("**Mean Latency:** 0.0018 seconds")
-        st.write("**Latency/Window Ratio:** 0.035%")
-        
-        st.success("✅ **EXCELLENT** - Real-time capable with large margin")
-        
-        st.info(
-            "The model can make predictions **~2,800 times faster** than the "
-            "prediction window, making it highly suitable for real-time deployment."
-        )
+        if latency_data:
+            mean_latency_sec = latency_data.get('mean', 0) / 1000.0  # Convert ms to seconds
+            prediction_window = 5.0  # seconds
+            latency_ratio = (mean_latency_sec / prediction_window) * 100
+            times_faster = prediction_window / mean_latency_sec
+            
+            st.write("**Prediction Window:** 5 seconds")
+            st.write(f"**Mean Latency:** {mean_latency_sec:.4f} seconds")
+            st.write(f"**Latency/Window Ratio:** {latency_ratio:.3f}%")
+            
+            if latency_ratio < 10:
+                st.success("✅ **EXCELLENT** - Real-time capable with large margin")
+            elif latency_ratio < 50:
+                st.success("✅ **GOOD** - Real-time capable")
+            else:
+                st.warning("⚠️ **MARGINAL** - May struggle with real-time requirements")
+            
+            st.info(
+                f"The model can make predictions **~{times_faster:.0f} times faster** than the "
+                "prediction window, making it highly suitable for real-time deployment."
+            )
     
     with col2:
         st.subheader("💾 Model Size & Efficiency")
